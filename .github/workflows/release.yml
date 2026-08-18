@@ -1,0 +1,74 @@
+name: Build and publish release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Read extension version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(php -r '$metadata = json_decode(file_get_contents("metadata.json"), true); echo $metadata["version"] ?? "";')
+          if [ -z "$VERSION" ]; then
+            echo "Unable to read version from metadata.json"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether release exists
+        id: release_check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build extension package
+        if: steps.release_check.outputs.exists == 'false'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          PACKAGE_ROOT="dist/freshrss-translate-summary"
+          ARCHIVE="freshrss-translate-summary-${VERSION}.zip"
+          mkdir -p "$PACKAGE_ROOT"
+          rsync -a \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude 'dist/' \
+            ./ "$PACKAGE_ROOT/"
+          cd dist
+          zip -r "../$ARCHIVE" freshrss-translate-summary
+
+      - name: Publish GitHub release
+        if: steps.release_check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          gh release create "$TAG" \
+            "freshrss-translate-summary-${VERSION}.zip" \
+            --target "$GITHUB_SHA" \
+            --title "FreshRSS 翻译与摘要 v${VERSION}" \
+            --notes "支持多个模型切换"

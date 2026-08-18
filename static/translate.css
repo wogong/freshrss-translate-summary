@@ -1,5 +1,6 @@
 .translate-cn-toolbar,
-.translate-cn-result {
+.translate-cn-result,
+.translate-cn-profile-card {
   --translate-cn-surface: var(--color-background-light, rgba(127, 127, 127, 0.08));
   --translate-cn-surface-hover: var(--color-background-hover, rgba(127, 127, 127, 0.16));
   --translate-cn-surface-strong: var(--color-background-light-darker, rgba(127, 127, 127, 0.22));
@@ -18,6 +19,23 @@
   color: var(--translate-cn-text);
 }
 
+.translate-cn-profile-select {
+  max-width: min(26rem, 100%);
+  min-width: 12rem;
+  min-height: 2rem;
+  padding: 0.25rem 2rem 0.25rem 0.55rem;
+  border: 1px solid var(--translate-cn-surface-strong);
+  border-radius: 4px;
+  background-color: var(--translate-cn-surface);
+  color: inherit;
+  font: inherit;
+}
+
+.translate-cn-profile-select:focus-visible {
+  border-color: var(--translate-cn-success);
+  outline: 1px solid var(--translate-cn-success);
+}
+
 .translate-cn-button,
 .translate-cn-summary-button {
   padding: 0.25rem 0.75rem;
@@ -28,7 +46,6 @@
   font: inherit;
   line-height: 1.4;
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
 }
 
 .translate-cn-button:hover,
@@ -39,13 +56,14 @@
   border-color: var(--translate-cn-success);
 }
 
-.translate-cn-button[data-loading="1"],
-.translate-cn-summary-button[data-loading="1"] {
+.translate-cn-toolbar[data-loading="1"] .translate-cn-button,
+.translate-cn-toolbar[data-loading="1"] .translate-cn-summary-button {
   opacity: 0.7;
   cursor: progress;
 }
 
 .translate-cn-status {
+  flex: 1 1 15rem;
   font-size: 0.85rem;
   color: var(--translate-cn-text-muted);
 }
@@ -75,18 +93,86 @@
   color: inherit;
 }
 
-.translate-cn-result a {
-  color: inherit;
-}
-
 .translate-cn-result pre,
 .translate-cn-result code {
   background: var(--translate-cn-surface-hover);
   color: inherit;
 }
 
-.translate-cn-result blockquote {
-  border-inline-start: 3px solid var(--translate-cn-surface-strong);
-  margin-inline: 0;
-  padding-inline-start: 0.75rem;
+.translate-cn-profile-list {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.translate-cn-profile-card {
+  padding: 1rem;
+  border: 1px solid var(--translate-cn-surface-strong);
+  border-radius: 6px;
+  background: var(--translate-cn-surface);
+  color: var(--translate-cn-text);
+}
+
+.translate-cn-profile-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.8rem;
+}
+
+.translate-cn-profile-card-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.translate-cn-profile-remove:not(:disabled) {
+  color: var(--translate-cn-danger);
+}
+
+.translate-cn-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem 1rem;
+}
+
+.translate-cn-profile-grid label {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.translate-cn-profile-grid input {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.translate-cn-profile-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 720px) {
+  .translate-cn-profile-select {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: none;
+  }
+
+  .translate-cn-status {
+    flex-basis: 100%;
+  }
+
+  .translate-cn-profile-card-header {
+    align-items: flex-start;
+  }
+
+  .translate-cn-profile-grid {
+    grid-template-columns: 1fr;
+  }
 }
