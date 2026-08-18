@@ -46,19 +46,25 @@
       stored = '';
     }
 
-    if (profiles.some(function (profile) { return profile.id === stored; })) {
-      return stored;
-    }
+    // Match by name+model rather than id: ids are list positions and shift when a profile is deleted.
+    var match = profiles.find(function (profile) { return profileKey(profile) === stored; });
+    if (match) return match.id;
 
     return profiles.length > 0 ? profiles[0].id : '';
   }
 
   function storeProfileId(profileId) {
+    var profile = getProfiles().find(function (item) { return item.id === profileId; });
+    if (!profile) return;
     try {
-      window.localStorage.setItem(PROFILE_STORAGE_KEY, profileId);
+      window.localStorage.setItem(PROFILE_STORAGE_KEY, profileKey(profile));
     } catch (error) {
       // Local storage is optional.
     }
+  }
+
+  function profileKey(profile) {
+    return (profile.name || '') + '\u0000' + (profile.model || '');
   }
 
   function profileLabel(profile) {

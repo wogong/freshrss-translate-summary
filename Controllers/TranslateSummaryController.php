@@ -28,10 +28,6 @@ final class FreshExtension_TranslateSummary_Controller extends FreshRSS_ActionCo
             $this->sendJson(['ok' => false, 'error' => '所选配置尚未填写 API 密钥。'], 400);
             return;
         }
-        if ($profile['base_url'] === '' || $profile['model'] === '') {
-            $this->sendJson(['ok' => false, 'error' => '所选配置的 API 地址或模型名称不完整。'], 400);
-            return;
-        }
 
         $content = Minz_Request::paramString('content_html', true);
         if (trim($content) === '') {

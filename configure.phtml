@@ -7,16 +7,8 @@ if (!isset($this) || !$this instanceof TranslateSummaryExtension) {
 $profiles = $this->getApiProfiles();
 $requestTimeout = $this->getRequestTimeout();
 $connectTimeout = $this->getConnectTimeout();
-$translatePrompt = $this->getConfigValue('translate_prompt');
-$summaryPrompt = $this->getConfigValue('summary_prompt');
-
-if ($translatePrompt === '') {
-    $translatePrompt = '请将以下内容翻译为中文，并尽可能保留原有 HTML 结构。';
-}
-
-if ($summaryPrompt === '') {
-    $summaryPrompt = '请使用中文简明总结以下内容，提炼关键功能、新增内容、修复问题和重要变更。仅返回可直接插入网页的 HTML 片段，不要使用 Markdown，不要输出代码围栏、星号粗体、井号标题或 Markdown 列表标记；不要输出 html、head、body 标签。使用 p、h3、ul、li、strong、code 等 HTML 标签组织内容，只输出最终摘要，不要解释输出格式。';
-}
+$translatePrompt = $this->getTranslatePrompt();
+$summaryPrompt = $this->getSummaryPrompt();
 ?>
 <form method="post" action="<?php echo _url('extension', 'configure', 'e', urlencode($this->getName())); ?>" data-auto-leave-validation="1" id="translate-cn-settings-form">
     <input type="hidden" name="_csrf" value="<?php echo htmlspecialchars(FreshRSS_Auth::csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
@@ -82,8 +74,8 @@ if ($summaryPrompt === '') {
                             <input
                                 type="password"
                                 name="profile_api_key[]"
-                                value="<?php echo htmlspecialchars($profile['api_key'], ENT_QUOTES, 'UTF-8'); ?>"
-                                placeholder="sk-..."
+                                value=""
+                                placeholder="<?php echo $profile['api_key'] !== '' ? '已保存，留空则保持不变' : 'sk-...'; ?>"
                                 autocomplete="new-password"
                             >
                         </label>

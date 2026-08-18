@@ -71,4 +71,4 @@ jobs:
             "freshrss-translate-summary-${VERSION}.zip" \
             --target "$GITHUB_SHA" \
             --title "FreshRSS 翻译与摘要 v${VERSION}" \
-            --notes "支持多个模型切换"
+            --generate-notes

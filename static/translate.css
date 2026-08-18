@@ -93,10 +93,20 @@
   color: inherit;
 }
 
+.translate-cn-result a {
+  color: inherit;
+}
+
 .translate-cn-result pre,
 .translate-cn-result code {
   background: var(--translate-cn-surface-hover);
   color: inherit;
+}
+
+.translate-cn-result blockquote {
+  border-inline-start: 3px solid var(--translate-cn-surface-strong);
+  margin-inline: 0;
+  padding-inline-start: 0.75rem;
 }
 
 .translate-cn-profile-list {

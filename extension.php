@@ -38,13 +38,10 @@ final class TranslateSummaryExtension extends Minz_Extension {
             120
         );
 
-        $profiles = $this->readPostedApiProfiles();
+        $stored = $this->getApiProfiles();
+        $profiles = $this->readPostedApiProfiles($stored);
         if ($profiles === []) {
-            // Backward compatibility with the JavaScript-based v0.3.x form.
-            $profiles = $this->decodeApiProfiles(Minz_Request::paramString('api_profiles', true));
-        }
-        if ($profiles === []) {
-            $profiles = $this->getApiProfiles();
+            $profiles = $stored;
         }
 
         $notice = '翻译与摘要设置已保存。';
@@ -95,7 +92,6 @@ final class TranslateSummaryExtension extends Minz_Extension {
             ]];
         }
 
-        $firstProfile = $profiles[0];
         $profilesJson = json_encode($profiles, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         if (!is_string($profilesJson)) {
             $profilesJson = '[]';
@@ -103,9 +99,6 @@ final class TranslateSummaryExtension extends Minz_Extension {
 
         $config = [
             'api_profiles' => $profilesJson,
-            'api_base_url' => $firstProfile['base_url'],
-            'api_key' => $firstProfile['api_key'],
-            'model' => $firstProfile['model'],
             'request_timeout' => (string)$requestTimeout,
             'connect_timeout' => (string)$connectTimeout,
             'translate_prompt' => trim(Minz_Request::paramString('translate_prompt', true)),
@@ -237,9 +230,11 @@ final class TranslateSummaryExtension extends Minz_Extension {
     }
 
     /**
+     * A blank posted API key keeps the stored key at the same position (keys are not echoed into the form).
+     * @param list<array{name:string,base_url:string,api_key:string,model:string}> $stored
      * @return list<array{name:string,base_url:string,api_key:string,model:string}>
      */
-    private function readPostedApiProfiles(): array {
+    private function readPostedApiProfiles(array $stored): array {
         $names = Minz_Request::paramArrayString('profile_name', true);
         $baseUrls = Minz_Request::paramArrayString('profile_base_url', true);
         $apiKeys = Minz_Request::paramArrayString('profile_api_key', true);
@@ -267,7 +262,7 @@ final class TranslateSummaryExtension extends Minz_Extension {
             $profiles[] = [
                 'name' => $name !== '' ? $name : '配置 ' . ($index + 1),
                 'base_url' => $baseUrl !== '' ? rtrim($baseUrl, '/') : self::DEFAULT_BASE_URL,
-                'api_key' => $apiKey,
+                'api_key' => $apiKey !== '' ? $apiKey : ($stored[$index]['api_key'] ?? ''),
                 'model' => $model !== '' ? $model : self::DEFAULT_MODEL,
             ];
         }
