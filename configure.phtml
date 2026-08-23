@@ -14,16 +14,16 @@ $summaryPrompt = $this->getSummaryPrompt();
     <input type="hidden" name="_csrf" value="<?php echo htmlspecialchars(FreshRSS_Auth::csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
 
     <fieldset class="form-group">
-        <legend>API 与模型配置</legend>
-        <p class="help">配置页已改为纯服务端表单，不依赖 JavaScript。点击“添加配置”“复制”或“删除”后，FreshRSS 会保存当前表单并重新加载页面。</p>
+        <legend>API &amp; model profiles</legend>
+        <p class="help">This settings page is a pure server-side form and does not rely on JavaScript. Clicking "Add profile", "Copy" or "Remove" saves the current form and reloads the page.</p>
 
         <div class="translate-cn-profile-list">
             <?php foreach ($profiles as $index => $profile): ?>
                 <section class="translate-cn-profile-card">
                     <div class="translate-cn-profile-card-header">
-                        <strong>API 配置 <?php echo $index + 1; ?></strong>
+                        <strong>API profile <?php echo $index + 1; ?></strong>
                         <div class="translate-cn-profile-card-actions">
-                            <button class="btn" type="submit" name="copy_profile" value="<?php echo $index; ?>" formnovalidate>复制</button>
+                            <button class="btn" type="submit" name="copy_profile" value="<?php echo $index; ?>" formnovalidate>Copy</button>
                             <button
                                 class="btn translate-cn-profile-remove"
                                 type="submit"
@@ -31,35 +31,35 @@ $summaryPrompt = $this->getSummaryPrompt();
                                 value="<?php echo $index; ?>"
                                 formnovalidate
                                 <?php echo count($profiles) <= 1 ? 'disabled' : ''; ?>
-                            >删除</button>
+                            >Remove</button>
                         </div>
                     </div>
 
                     <div class="translate-cn-profile-grid">
                         <label>
-                            <span>配置名称</span>
+                            <span>Profile name</span>
                             <input
                                 type="text"
                                 name="profile_name[]"
                                 value="<?php echo htmlspecialchars($profile['name'], ENT_QUOTES, 'UTF-8'); ?>"
-                                placeholder="例如：OpenAI 主线路"
+                                placeholder="e.g. OpenAI main"
                                 autocomplete="off"
                             >
                         </label>
 
                         <label>
-                            <span>模型名称</span>
+                            <span>Model name</span>
                             <input
                                 type="text"
                                 name="profile_model[]"
                                 value="<?php echo htmlspecialchars($profile['model'], ENT_QUOTES, 'UTF-8'); ?>"
-                                placeholder="例如：gpt-4o"
+                                placeholder="e.g. gpt-4o"
                                 autocomplete="off"
                             >
                         </label>
 
                         <label>
-                            <span>API 基础地址</span>
+                            <span>API base URL</span>
                             <input
                                 type="text"
                                 name="profile_base_url[]"
@@ -70,12 +70,12 @@ $summaryPrompt = $this->getSummaryPrompt();
                         </label>
 
                         <label>
-                            <span>API 密钥</span>
+                            <span>API key</span>
                             <input
                                 type="password"
                                 name="profile_api_key[]"
                                 value=""
-                                placeholder="<?php echo $profile['api_key'] !== '' ? '已保存，留空则保持不变' : 'sk-...'; ?>"
+                                placeholder="<?php echo $profile['api_key'] !== '' ? 'Saved; leave blank to keep unchanged' : 'sk-...'; ?>"
                                 autocomplete="new-password"
                             >
                         </label>
@@ -92,50 +92,50 @@ $summaryPrompt = $this->getSummaryPrompt();
                 value="add"
                 formnovalidate
                 <?php echo count($profiles) >= 20 ? 'disabled' : ''; ?>
-            >添加配置</button>
-            <span class="help">最多可保存 20 个配置。需要同一 API 使用不同模型时，可直接点击对应配置的“复制”。</span>
+            >Add profile</button>
+            <span class="help">Up to 20 profiles can be saved. To use different models with the same API, click "Copy" on the matching profile.</span>
         </div>
     </fieldset>
 
     <fieldset class="form-group">
-        <legend>通用设置</legend>
+        <legend>General settings</legend>
 
         <div class="form-group">
-            <label class="group-name" for="translate-cn-request-timeout">请求超时</label>
+            <label class="group-name" for="translate-cn-request-timeout">Request timeout</label>
             <div class="group-controls">
                 <input id="translate-cn-request-timeout" name="request_timeout" type="number" min="10" max="600" step="1" value="<?php echo $requestTimeout; ?>">
-                <p class="help">等待 API 完成响应的最长时间，单位为秒。默认 180 秒，可填写 10–600。</p>
+                <p class="help">Maximum time in seconds to wait for the API response. Default 180, allowed range 10–600.</p>
             </div>
         </div>
 
         <div class="form-group">
-            <label class="group-name" for="translate-cn-connect-timeout">连接超时</label>
+            <label class="group-name" for="translate-cn-connect-timeout">Connect timeout</label>
             <div class="group-controls">
                 <input id="translate-cn-connect-timeout" name="connect_timeout" type="number" min="1" max="120" step="1" value="<?php echo $connectTimeout; ?>">
-                <p class="help">与 API 服务器建立连接的最长时间，单位为秒。默认 30 秒，可填写 1–120。</p>
+                <p class="help">Maximum time in seconds to establish a connection to the API server. Default 30, allowed range 1–120.</p>
             </div>
         </div>
 
         <div class="form-group">
-            <label class="group-name" for="translate-cn-translate-prompt">翻译提示词</label>
+            <label class="group-name" for="translate-cn-translate-prompt">Translate prompt</label>
             <div class="group-controls">
                 <textarea id="translate-cn-translate-prompt" name="translate_prompt" rows="4"><?php echo htmlspecialchars($translatePrompt, ENT_QUOTES, 'UTF-8'); ?></textarea>
-                <p class="help">所有 API 配置共用的翻译系统提示词。</p>
+                <p class="help">System prompt for translation, shared by all API profiles.</p>
             </div>
         </div>
 
         <div class="form-group">
-            <label class="group-name" for="translate-cn-summary-prompt">摘要提示词</label>
+            <label class="group-name" for="translate-cn-summary-prompt">Summary prompt</label>
             <div class="group-controls">
                 <textarea id="translate-cn-summary-prompt" name="summary_prompt" rows="6"><?php echo htmlspecialchars($summaryPrompt, ENT_QUOTES, 'UTF-8'); ?></textarea>
-                <p class="help">所有 API 配置共用的摘要系统提示词。</p>
+                <p class="help">System prompt for summaries, shared by all API profiles.</p>
             </div>
         </div>
     </fieldset>
 
     <div class="form-group form-actions">
         <div class="group-controls">
-            <button class="btn btn-important" type="submit">保存设置</button>
+            <button class="btn btn-important" type="submit">Save settings</button>
         </div>
     </div>
 </form>

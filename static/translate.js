@@ -68,8 +68,8 @@
   }
 
   function profileLabel(profile) {
-    if (!profile) return '未配置 API';
-    var name = profile.name || '未命名配置';
+    if (!profile) return 'No API profile';
+    var name = profile.name || 'Unnamed profile';
     return profile.model ? name + ' · ' + profile.model : name;
   }
 
@@ -138,13 +138,13 @@
   function createProfileSelect(profiles) {
     var select = document.createElement('select');
     select.className = 'translate-cn-profile-select';
-    select.setAttribute('aria-label', '选择翻译与摘要使用的 API 配置');
-    select.title = '选择 API 地址和模型';
+    select.setAttribute('aria-label', 'Select the API profile used for translation and summary');
+    select.title = 'Select API endpoint and model';
 
     if (profiles.length === 0) {
       var emptyOption = document.createElement('option');
       emptyOption.value = '';
-      emptyOption.textContent = '未配置 API';
+      emptyOption.textContent = 'No API profile';
       select.appendChild(emptyOption);
       select.disabled = true;
       return select;
@@ -188,8 +188,8 @@
     toolbar.dataset.summaryEndpoint = config.summaryEndpoint || '?c=TranslateSummary&a=summary';
 
     var select = createProfileSelect(profiles);
-    var translateButton = createButton('translate-cn-button', '翻译', '使用所选 API 配置翻译文章');
-    var summaryButton = createButton('translate-cn-summary-button', '摘要', '使用所选 API 配置生成摘要');
+    var translateButton = createButton('translate-cn-button', 'Translate', 'Translate the article with the selected API profile');
+    var summaryButton = createButton('translate-cn-summary-button', 'Summary', 'Summarize the article with the selected API profile');
     var status = document.createElement('span');
     status.className = 'translate-cn-status';
     status.setAttribute('aria-live', 'polite');
@@ -197,7 +197,7 @@
     if (profiles.length === 0) {
       translateButton.disabled = true;
       summaryButton.disabled = true;
-      status.textContent = '请先在扩展设置中添加 API 配置。';
+      status.textContent = 'Add an API profile in the extension settings first.';
       status.dataset.state = 'error';
     }
 
@@ -250,12 +250,12 @@
   function parseResponse(response) {
     var contentType = response.headers.get('Content-Type') || '';
     if (contentType.indexOf('application/json') === -1) {
-      throw new Error(response.status === 403 ? '请求被拒绝，请刷新页面后重试。' : '服务器返回了无法识别的响应。');
+      throw new Error(response.status === 403 ? 'Request rejected; refresh the page and try again.' : 'The server returned an unrecognized response.');
     }
 
     return response.json().then(function (data) {
       if (!response.ok || !data || !data.ok) {
-        throw new Error(data && data.error ? data.error : '请求失败。');
+        throw new Error(data && data.error ? data.error : 'Request failed.');
       }
       return data;
     });
@@ -302,7 +302,7 @@
     });
 
     var profile = selectedProfile(toolbar);
-    setStatus(toolbar.querySelector('.translate-cn-status'), '已切换到：' + profile.label, '');
+    setStatus(toolbar.querySelector('.translate-cn-status'), 'Switched to: ' + profile.label, '');
   }
 
   function handleClick(event) {
@@ -315,7 +315,7 @@
 
     var profile = selectedProfile(toolbar);
     if (!profile.id) {
-      setStatus(toolbar.querySelector('.translate-cn-status'), '请先选择有效的 API 配置。', 'error');
+      setStatus(toolbar.querySelector('.translate-cn-status'), 'Select a valid API profile first.', 'error');
       return;
     }
 
@@ -333,18 +333,18 @@
 
     var contentHtml = findEntryContent(entryElement);
     if (!contentHtml) {
-      setStatus(statusElement, isSummary ? '没有可生成摘要的内容。' : '没有可翻译的内容。', 'error');
+      setStatus(statusElement, isSummary ? 'No content available to summarize.' : 'No content available to translate.', 'error');
       return;
     }
 
     var csrfToken = getCsrfToken();
     if (!csrfToken) {
-      setStatus(statusElement, '缺少 CSRF 令牌，请刷新页面后重试。', 'error');
+      setStatus(statusElement, 'Missing CSRF token; refresh the page and try again.', 'error');
       return;
     }
 
     setToolbarLoading(toolbar, true);
-    setStatus(statusElement, (isSummary ? '正在生成摘要' : '正在翻译') + '（' + profile.label + '）…', 'loading');
+    setStatus(statusElement, (isSummary ? 'Summarizing' : 'Translating') + ' (' + profile.label + ')…', 'loading');
 
     requestAction(getEndpoint(toolbar, action), contentHtml, csrfToken, profile.id)
       .then(function (data) {
@@ -354,10 +354,10 @@
           resultElement.dataset.state = 'done';
           resultElement.dataset.profileId = profile.id;
         }
-        setStatus(statusElement, (isSummary ? '摘要已生成' : '翻译已完成') + '（' + profile.label + '）。', 'done');
+        setStatus(statusElement, (isSummary ? 'Summary ready' : 'Translation complete') + ' (' + profile.label + ').', 'done');
       })
       .catch(function (error) {
-        setStatus(statusElement, error.message || (isSummary ? '生成摘要失败。' : '翻译失败。'), 'error');
+        setStatus(statusElement, error.message || (isSummary ? 'Failed to generate summary.' : 'Translation failed.'), 'error');
       })
       .finally(function () {
         setToolbarLoading(toolbar, false);

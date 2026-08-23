@@ -1,59 +1,58 @@
-# FreshRSS 翻译与摘要
+# FreshRSS Translate & Summary
 
-这是一个 FreshRSS 用户扩展，可通过 OpenAI 兼容 API 对文章内容进行中文翻译或生成中文摘要。
+A FreshRSS user extension that translates article content into Chinese or generates Chinese summaries via OpenAI-compatible APIs.
 
-## 功能
+## Features
 
-- 一键翻译文章内容
-- 一键生成中文摘要
-- 支持多个 OpenAI 兼容 API 地址与模型配置
-- 可在文章工具栏中快速切换 API 配置和模型
-- 可自定义请求超时、连接超时、翻译提示词和摘要提示词
-- 适配 FreshRSS 明暗主题
-- 界面与操作提示中文化
+- One-click article translation
+- One-click Chinese summary generation
+- Multiple OpenAI-compatible API endpoints and model profiles
+- Quick switching between API profiles and models from the article toolbar
+- Customizable request timeout, connect timeout, translate prompt, and summary prompt
+- Works with FreshRSS light and dark themes
 
-## 安装
+## Installation
 
-要求 FreshRSS 1.25.0 及以上版本。
+Requires FreshRSS 1.25.0 or later.
 
-1. 从 Releases 下载扩展压缩包。
-2. 解压后确认目录名为 `freshrss-translate-summary`。
-3. 将目录放入 FreshRSS 扩展目录：
+1. Download the extension archive from Releases.
+2. Extract it and make sure the directory is named `freshrss-translate-summary`.
+3. Move the directory into the FreshRSS extensions directory:
 
    ```text
    /var/www/FreshRSS/extensions/
    ```
 
-4. 进入 FreshRSS 的“设置 → 扩展”，启用 `freshrss-translate-summary`。
+4. In FreshRSS, go to "Settings → Extensions" and enable `freshrss-translate-summary`.
 
-## 配置
+## Configuration
 
-进入扩展设置页，可以添加一个或多个 API 配置组。每个配置组包含：
+On the extension settings page you can add one or more API profiles. Each profile contains:
 
-- 配置名称
-- API 基础地址，例如 `https://api.openai.com/v1`
-- API 密钥
-- 模型名称，例如 `gpt-4o`
+- Profile name
+- API base URL, e.g. `https://api.openai.com/v1`
+- API key
+- Model name, e.g. `gpt-4o`
 
-如果同一个 API 地址需要使用多个模型，可以新增多个配置组，并复用相同的 API 地址和密钥。
+To use several models with the same API endpoint, add multiple profiles reusing the same base URL and key.
 
-扩展还支持配置：
+The extension also supports:
 
-- 请求超时，默认 180 秒
-- 连接超时，默认 30 秒
-- 翻译提示词
-- 摘要提示词
+- Request timeout, default 180 seconds
+- Connect timeout, default 30 seconds
+- Translate prompt
+- Summary prompt
 
-保存后，打开任意文章，在工具栏下拉框中选择需要使用的 API 配置，再点击“翻译”或“摘要”。最近选择的配置会保存在当前浏览器中。
+After saving, open any article, pick the API profile from the toolbar dropdown, then click "Translate" or "Summary". The last selected profile is remembered in the current browser.
 
-旧版本（0.1.x）中保存的单一 API 地址、密钥和模型会自动迁移为第一个配置组。
+The single API base URL, key, and model saved by old versions (0.1.x) are automatically migrated into the first profile.
 
-注意：v0.3.3 曾将扩展标识改为中文名，FreshRSS 按标识存储启用状态和配置，因此从 v0.3.3 升级到 v0.3.4 及以后需要重新启用扩展并重新填写配置。
+Note: v0.3.3 temporarily changed the extension identifier to a Chinese name. FreshRSS stores the enabled state and configuration by identifier, so upgrading from v0.3.3 to v0.3.4 or later requires re-enabling the extension and re-entering its settings.
 
-## 隐私与安全
+## Privacy & security
 
-扩展前端只接收配置名称、模型名称和配置编号。API 地址和 API 密钥仅保存在 FreshRSS 用户配置中，不会下发到浏览器工具栏。
+The frontend only receives profile names, model names, and profile indexes. API base URLs and API keys stay in the FreshRSS user configuration and are never sent to the browser toolbar.
 
-## 致谢
+## Credits
 
-本扩展最初参考了 [xExtension-ArticleSummary](https://github.com/LiangWei88/xExtension-ArticleSummary)。
+This extension was originally inspired by [xExtension-ArticleSummary](https://github.com/LiangWei88/xExtension-ArticleSummary).

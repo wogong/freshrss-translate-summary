@@ -14,24 +14,24 @@ final class FreshExtension_TranslateSummary_Controller extends FreshRSS_ActionCo
     private function handleAction(string $action): void {
         $extension = $this->getExtension();
         if ($extension === null) {
-            $this->sendJson(['ok' => false, 'error' => '翻译与摘要扩展当前不可用，请确认扩展已经启用。'], 500);
+            $this->sendJson(['ok' => false, 'error' => 'The Translate & Summary extension is unavailable; make sure it is enabled.'], 500);
             return;
         }
 
         $profileId = Minz_Request::paramString('profile_id', true);
         $profile = $extension->getApiProfile($profileId);
         if ($profile === null) {
-            $this->sendJson(['ok' => false, 'error' => '所选 API 配置不存在，请刷新页面后重试。'], 400);
+            $this->sendJson(['ok' => false, 'error' => 'The selected API profile does not exist; refresh the page and try again.'], 400);
             return;
         }
         if ($profile['api_key'] === '') {
-            $this->sendJson(['ok' => false, 'error' => '所选配置尚未填写 API 密钥。'], 400);
+            $this->sendJson(['ok' => false, 'error' => 'The selected profile has no API key configured.'], 400);
             return;
         }
 
         $content = Minz_Request::paramString('content_html', true);
         if (trim($content) === '') {
-            $this->sendJson(['ok' => false, 'error' => '文章内容为空。'], 400);
+            $this->sendJson(['ok' => false, 'error' => 'The article content is empty.'], 400);
             return;
         }
 
@@ -100,12 +100,12 @@ final class FreshExtension_TranslateSummary_Controller extends FreshRSS_ActionCo
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
         if (!is_string($bodyJson)) {
-            return ['ok' => false, 'error' => '无法生成 API 请求内容。', 'status' => 500];
+            return ['ok' => false, 'error' => 'Failed to build the API request body.', 'status' => 500];
         }
 
         $ch = curl_init($endpoint);
         if ($ch === false) {
-            return ['ok' => false, 'error' => '无法初始化 API 请求。', 'status' => 500];
+            return ['ok' => false, 'error' => 'Failed to initialize the API request.', 'status' => 500];
         }
 
         curl_setopt_array($ch, [
@@ -128,14 +128,14 @@ final class FreshExtension_TranslateSummary_Controller extends FreshRSS_ActionCo
         if ($response === false) {
             return [
                 'ok' => false,
-                'error' => $curlError !== '' ? 'API 请求失败：' . $curlError : 'API 请求失败。',
+                'error' => $curlError !== '' ? 'API request failed: ' . $curlError : 'API request failed.',
                 'status' => 502,
             ];
         }
 
         $decoded = json_decode((string)$response, true);
         if (!is_array($decoded)) {
-            return ['ok' => false, 'error' => 'API 返回了无法解析的响应。', 'status' => 502];
+            return ['ok' => false, 'error' => 'The API returned an unparsable response.', 'status' => 502];
         }
 
         if (
@@ -152,7 +152,7 @@ final class FreshExtension_TranslateSummary_Controller extends FreshRSS_ActionCo
 
         $translated = $decoded['choices'][0]['message']['content'] ?? '';
         if (!is_string($translated) || trim($translated) === '') {
-            return ['ok' => false, 'error' => 'API 返回的翻译或摘要内容为空。', 'status' => 502];
+            return ['ok' => false, 'error' => 'The API returned an empty translation or summary.', 'status' => 502];
         }
 
         return ['ok' => true, 'translated_html' => $translated];
@@ -169,7 +169,7 @@ final class FreshExtension_TranslateSummary_Controller extends FreshRSS_ActionCo
         header('Content-Type: application/json; charset=UTF-8');
 
         $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        echo is_string($json) ? $json : '{"ok":false,"error":"响应编码失败。"}';
+        echo is_string($json) ? $json : '{"ok":false,"error":"Failed to encode the response."}';
         exit;
     }
 }

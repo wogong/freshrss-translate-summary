@@ -70,5 +70,5 @@ jobs:
           gh release create "$TAG" \
             "freshrss-translate-summary-${VERSION}.zip" \
             --target "$GITHUB_SHA" \
-            --title "FreshRSS 翻译与摘要 v${VERSION}" \
+            --title "FreshRSS Translate & Summary v${VERSION}" \
             --generate-notes
