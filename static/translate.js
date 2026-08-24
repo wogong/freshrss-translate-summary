@@ -128,11 +128,45 @@
     if (!contentElement) return '';
 
     var clone = contentElement.cloneNode(true);
-    clone.querySelectorAll('.translate-cn-toolbar, .translate-cn-result').forEach(function (element) {
+    clone.querySelectorAll('.translate-cn-toolbar, .translate-cn-result, .translate-cn-immersive').forEach(function (element) {
       element.remove();
     });
 
     return clone.innerHTML.trim();
+  }
+
+  var BLOCK_SELECTOR = 'p, h1, h2, h3, h4, h5, h6, li, blockquote';
+  var PARAGRAPH_SEPARATOR = '\n\n%%\n\n';
+
+  function blockSourceHtml(element) {
+    var clone = element.cloneNode(true);
+    clone.querySelectorAll('.translate-cn-immersive').forEach(function (node) { node.remove(); });
+    if (clone.textContent.trim() === '') return '';
+    return clone.innerHTML.trim();
+  }
+
+  function collectTranslatableBlocks(container) {
+    var blocks = [];
+    container.querySelectorAll(BLOCK_SELECTOR).forEach(function (element) {
+      if (element.closest('.translate-cn-toolbar, .translate-cn-result, .translate-cn-immersive')) return;
+      // Keep leaf blocks only: a blockquote or li wrapping other blocks is covered by its children.
+      if (element.querySelector(BLOCK_SELECTOR)) return;
+      if (blockSourceHtml(element) === '') return;
+      blocks.push(element);
+    });
+
+    return blocks;
+  }
+
+  function splitTranslations(text) {
+    return String(text)
+      .split(/\s*%%\s*/)
+      .map(function (part) { return part.trim(); })
+      .filter(function (part) { return part !== ''; });
+  }
+
+  function clearImmersive(container) {
+    container.querySelectorAll('.translate-cn-immersive').forEach(function (node) { node.remove(); });
   }
 
   function createProfileSelect(profiles) {
@@ -297,12 +331,123 @@
     var entryElement = select.closest('.entry') || select.closest('.flux');
     if (!toolbar || !entryElement) return;
 
-    entryElement.querySelectorAll('.translate-cn-result').forEach(function (result) {
+    entryElement.querySelectorAll('.translate-cn-result, .translate-cn-immersive').forEach(function (result) {
       if (result.dataset.profileId !== select.value) result.hidden = true;
     });
 
     var profile = selectedProfile(toolbar);
     setStatus(toolbar.querySelector('.translate-cn-status'), 'Switched to: ' + profile.label, '');
+  }
+
+  function findResultElement(toolbar, entryElement, action) {
+    return entryElement.querySelector(
+      '.translate-cn-result[data-entry-id="' + toolbar.dataset.entryId + '"][data-result-type="' + action + '"]'
+    );
+  }
+
+  function runSummary(toolbar, entryElement, profile, statusElement) {
+    var resultElement = findResultElement(toolbar, entryElement, 'summary');
+
+    if (resultElement && resultElement.dataset.state === 'done' && resultElement.dataset.profileId === profile.id) {
+      resultElement.hidden = !resultElement.hidden;
+      return;
+    }
+
+    var contentHtml = findEntryContent(entryElement);
+    if (!contentHtml) {
+      setStatus(statusElement, 'No content available to summarize.', 'error');
+      return;
+    }
+
+    var csrfToken = getCsrfToken();
+    if (!csrfToken) {
+      setStatus(statusElement, 'Missing CSRF token; refresh the page and try again.', 'error');
+      return;
+    }
+
+    setToolbarLoading(toolbar, true);
+    setStatus(statusElement, 'Summarizing (' + profile.label + ')…', 'loading');
+
+    requestAction(getEndpoint(toolbar, 'summary'), contentHtml, csrfToken, profile.id)
+      .then(function (data) {
+        if (resultElement) {
+          resultElement.innerHTML = data.translated_html;
+          resultElement.hidden = false;
+          resultElement.dataset.state = 'done';
+          resultElement.dataset.profileId = profile.id;
+        }
+        setStatus(statusElement, 'Summary ready (' + profile.label + ').', 'done');
+      })
+      .catch(function (error) {
+        setStatus(statusElement, error.message || 'Failed to generate summary.', 'error');
+      })
+      .finally(function () {
+        setToolbarLoading(toolbar, false);
+      });
+  }
+
+  function runImmersiveTranslate(toolbar, entryElement, profile, statusElement) {
+    var container = findContentContainer(entryElement);
+    if (!container) {
+      setStatus(statusElement, 'No content available to translate.', 'error');
+      return;
+    }
+
+    var existing = container.querySelectorAll('.translate-cn-immersive');
+    if (existing.length > 0 && existing[0].dataset.profileId === profile.id) {
+      existing.forEach(function (node) { node.hidden = !node.hidden; });
+      return;
+    }
+
+    var blocks = collectTranslatableBlocks(container);
+    var contentHtml = blocks.length > 0
+      ? blocks.map(blockSourceHtml).join(PARAGRAPH_SEPARATOR)
+      : findEntryContent(entryElement);
+    if (!contentHtml) {
+      setStatus(statusElement, 'No content available to translate.', 'error');
+      return;
+    }
+
+    var csrfToken = getCsrfToken();
+    if (!csrfToken) {
+      setStatus(statusElement, 'Missing CSRF token; refresh the page and try again.', 'error');
+      return;
+    }
+
+    setToolbarLoading(toolbar, true);
+    setStatus(statusElement, 'Translating (' + profile.label + ')…', 'loading');
+
+    requestAction(getEndpoint(toolbar, 'translate'), contentHtml, csrfToken, profile.id)
+      .then(function (data) {
+        var parts = splitTranslations(data.translated_html);
+        clearImmersive(container);
+
+        if (blocks.length > 0 && parts.length === blocks.length) {
+          blocks.forEach(function (block, index) {
+            var target = document.createElement('span');
+            target.className = 'translate-cn-immersive';
+            target.dataset.profileId = profile.id;
+            target.innerHTML = parts[index];
+            block.appendChild(target);
+          });
+        } else {
+          // Paragraph counts diverged (or no blocks were found): show the whole translation in one block.
+          var resultElement = findResultElement(toolbar, entryElement, 'translate');
+          if (resultElement) {
+            resultElement.innerHTML = data.translated_html;
+            resultElement.hidden = false;
+            resultElement.dataset.state = 'done';
+            resultElement.dataset.profileId = profile.id;
+          }
+        }
+        setStatus(statusElement, 'Translation complete (' + profile.label + ').', 'done');
+      })
+      .catch(function (error) {
+        setStatus(statusElement, error.message || 'Translation failed.', 'error');
+      })
+      .finally(function () {
+        setToolbarLoading(toolbar, false);
+      });
   }
 
   function handleClick(event) {
@@ -314,54 +459,17 @@
     if (!toolbar || !entryElement || toolbar.dataset.loading === '1') return;
 
     var profile = selectedProfile(toolbar);
-    if (!profile.id) {
-      setStatus(toolbar.querySelector('.translate-cn-status'), 'Select a valid API profile first.', 'error');
-      return;
-    }
-
-    var isSummary = button.classList.contains('translate-cn-summary-button');
-    var action = isSummary ? 'summary' : 'translate';
     var statusElement = toolbar.querySelector('.translate-cn-status');
-    var resultElement = entryElement.querySelector(
-      '.translate-cn-result[data-entry-id="' + toolbar.dataset.entryId + '"][data-result-type="' + action + '"]'
-    );
-
-    if (resultElement && resultElement.dataset.state === 'done' && resultElement.dataset.profileId === profile.id) {
-      resultElement.hidden = !resultElement.hidden;
+    if (!profile.id) {
+      setStatus(statusElement, 'Select a valid API profile first.', 'error');
       return;
     }
 
-    var contentHtml = findEntryContent(entryElement);
-    if (!contentHtml) {
-      setStatus(statusElement, isSummary ? 'No content available to summarize.' : 'No content available to translate.', 'error');
-      return;
+    if (button.classList.contains('translate-cn-summary-button')) {
+      runSummary(toolbar, entryElement, profile, statusElement);
+    } else {
+      runImmersiveTranslate(toolbar, entryElement, profile, statusElement);
     }
-
-    var csrfToken = getCsrfToken();
-    if (!csrfToken) {
-      setStatus(statusElement, 'Missing CSRF token; refresh the page and try again.', 'error');
-      return;
-    }
-
-    setToolbarLoading(toolbar, true);
-    setStatus(statusElement, (isSummary ? 'Summarizing' : 'Translating') + ' (' + profile.label + ')…', 'loading');
-
-    requestAction(getEndpoint(toolbar, action), contentHtml, csrfToken, profile.id)
-      .then(function (data) {
-        if (resultElement) {
-          resultElement.innerHTML = data.translated_html;
-          resultElement.hidden = false;
-          resultElement.dataset.state = 'done';
-          resultElement.dataset.profileId = profile.id;
-        }
-        setStatus(statusElement, (isSummary ? 'Summary ready' : 'Translation complete') + ' (' + profile.label + ').', 'done');
-      })
-      .catch(function (error) {
-        setStatus(statusElement, error.message || (isSummary ? 'Failed to generate summary.' : 'Translation failed.'), 'error');
-      })
-      .finally(function () {
-        setToolbarLoading(toolbar, false);
-      });
   }
 
   function bind() {

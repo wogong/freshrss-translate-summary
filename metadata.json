@@ -2,7 +2,7 @@
   "name": "freshrss-translate-summary",
   "author": "wogong",
   "description": "Translate FreshRSS articles into Chinese or generate Chinese summaries via OpenAI-compatible APIs.",
-  "version": "0.3.4",
+  "version": "0.4.0",
   "entrypoint": "TranslateSummary",
   "type": "user"
 }

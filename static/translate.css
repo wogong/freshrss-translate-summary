@@ -1,5 +1,6 @@
 .translate-cn-toolbar,
 .translate-cn-result,
+.translate-cn-immersive,
 .translate-cn-profile-card {
   --translate-cn-surface: var(--color-background-light, rgba(127, 127, 127, 0.08));
   --translate-cn-surface-hover: var(--color-background-hover, rgba(127, 127, 127, 0.16));
@@ -107,6 +108,18 @@
   border-inline-start: 3px solid var(--translate-cn-surface-strong);
   margin-inline: 0;
   padding-inline-start: 0.75rem;
+}
+
+.translate-cn-immersive {
+  display: block;
+  margin-top: 0.4em;
+  padding-inline-start: 0.6em;
+  border-inline-start: 2px solid var(--translate-cn-surface-strong);
+  color: var(--translate-cn-text);
+}
+
+.translate-cn-immersive[hidden] {
+  display: none;
 }
 
 .translate-cn-profile-list {
