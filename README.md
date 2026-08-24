@@ -43,7 +43,7 @@ The extension also supports:
 - Translate prompt
 - Summary prompt
 
-After saving, open any article, pick the API profile from the toolbar dropdown, then click "Translate" or "Summary". "Translate" renders bilingually: each paragraph is followed by its Chinese translation (paragraphs are sent to the API separated by `%%`, so a custom translate prompt must keep the `%%` separator convention). Clicking "Translate" again toggles the translations. The last selected profile is remembered in the current browser.
+After saving, open any article, pick the API profile from the toolbar dropdown, then click "Translate" or "Summary". "Translate" renders bilingually: each paragraph is followed by its Chinese translation (paragraphs are sent to the API separated by `%%`, so a custom translate prompt must keep the `%%` separator convention). Long articles are split into batches translated concurrently, so translations appear progressively while the rest of the article is still being processed. Clicking "Translate" again toggles the translations. The last selected profile is remembered in the current browser.
 
 The single API base URL, key, and model saved by old versions (0.1.x) are automatically migrated into the first profile.
 

@@ -137,6 +137,9 @@
 
   var BLOCK_SELECTOR = 'p, h1, h2, h3, h4, h5, h6, li, blockquote';
   var PARAGRAPH_SEPARATOR = '\n\n%%\n\n';
+  var MAX_BATCH_BLOCKS = 8;
+  var MAX_BATCH_CHARS = 6000;
+  var MAX_CONCURRENT_BATCHES = 3;
 
   function blockSourceHtml(element) {
     var clone = element.cloneNode(true);
@@ -167,6 +170,34 @@
 
   function clearImmersive(container) {
     container.querySelectorAll('.translate-cn-immersive').forEach(function (node) { node.remove(); });
+  }
+
+  function injectTranslation(block, html, profileId) {
+    var target = document.createElement('span');
+    target.className = 'translate-cn-immersive';
+    target.dataset.profileId = profileId;
+    target.innerHTML = html;
+    block.appendChild(target);
+  }
+
+  function batchBlocks(blocks) {
+    var batches = [];
+    var current = [];
+    var chars = 0;
+
+    blocks.forEach(function (block) {
+      var length = blockSourceHtml(block).length;
+      if (current.length > 0 && (current.length >= MAX_BATCH_BLOCKS || chars + length > MAX_BATCH_CHARS)) {
+        batches.push(current);
+        current = [];
+        chars = 0;
+      }
+      current.push(block);
+      chars += length;
+    });
+    if (current.length > 0) batches.push(current);
+
+    return batches;
   }
 
   function createProfileSelect(profiles) {
@@ -394,15 +425,118 @@
     }
 
     var existing = container.querySelectorAll('.translate-cn-immersive');
-    if (existing.length > 0 && existing[0].dataset.profileId === profile.id) {
+    var sameProfile = existing.length > 0 && existing[0].dataset.profileId === profile.id;
+    if (sameProfile && toolbar.dataset.translateComplete === profile.id) {
       existing.forEach(function (node) { node.hidden = !node.hidden; });
       return;
     }
+    if (existing.length > 0 && !sameProfile) {
+      clearImmersive(container);
+    }
 
-    var blocks = collectTranslatableBlocks(container);
-    var contentHtml = blocks.length > 0
-      ? blocks.map(blockSourceHtml).join(PARAGRAPH_SEPARATOR)
-      : findEntryContent(entryElement);
+    var allBlocks = collectTranslatableBlocks(container);
+    if (allBlocks.length === 0) {
+      runLegacyTranslate(toolbar, entryElement, profile, statusElement);
+      return;
+    }
+
+    // After a partial failure, only the still-untranslated blocks are requested again.
+    var blocks = allBlocks.filter(function (block) {
+      return !block.querySelector('.translate-cn-immersive');
+    });
+    if (blocks.length === 0) {
+      toolbar.dataset.translateComplete = profile.id;
+      container.querySelectorAll('.translate-cn-immersive').forEach(function (node) { node.hidden = false; });
+      setStatus(statusElement, 'Translation complete (' + profile.label + ').', 'done');
+      return;
+    }
+
+    var csrfToken = getCsrfToken();
+    if (!csrfToken) {
+      setStatus(statusElement, 'Missing CSRF token; refresh the page and try again.', 'error');
+      return;
+    }
+
+    var batches = batchBlocks(blocks);
+    var queue = batches.map(function (batch, index) { return { batch: batch, index: index }; });
+    var results = new Array(batches.length);
+    var nextToRender = 0;
+    var done = 0;
+    var failures = 0;
+
+    delete toolbar.dataset.translateComplete;
+    setToolbarLoading(toolbar, true);
+    setStatus(statusElement, 'Translating (' + profile.label + ')… 0/' + batches.length, 'loading');
+
+    // Batches run concurrently but render strictly in document order:
+    // batch N is injected only once every batch before it has been rendered.
+    function flushRenderedBatches() {
+      while (nextToRender < batches.length && results[nextToRender] !== undefined) {
+        var parts = results[nextToRender];
+        var batch = batches[nextToRender];
+        if (parts !== null) {
+          if (parts.length === batch.length) {
+            batch.forEach(function (block, index) {
+              injectTranslation(block, parts[index], profile.id);
+            });
+          } else {
+            // The model merged or split paragraphs: keep the content visible on the batch's first block.
+            injectTranslation(batch[0], parts.join('<br>'), profile.id);
+          }
+        }
+        nextToRender += 1;
+      }
+    }
+
+    function translateNextBatch() {
+      var item = queue.shift();
+      if (!item) return Promise.resolve();
+
+      var contentHtml = item.batch.map(blockSourceHtml).join(PARAGRAPH_SEPARATOR);
+      return requestAction(getEndpoint(toolbar, 'translate'), contentHtml, csrfToken, profile.id)
+        .then(function (data) {
+          results[item.index] = splitTranslations(data.translated_html);
+          done += 1;
+          setStatus(statusElement, 'Translating (' + profile.label + ')… ' + done + '/' + batches.length, 'loading');
+        })
+        .catch(function () {
+          results[item.index] = null;
+          failures += 1;
+        })
+        .then(function () {
+          flushRenderedBatches();
+          return translateNextBatch();
+        });
+    }
+
+    var workers = [];
+    for (var i = 0; i < Math.min(MAX_CONCURRENT_BATCHES, batches.length); i += 1) {
+      workers.push(translateNextBatch());
+    }
+
+    Promise.all(workers)
+      .then(function () {
+        if (failures > 0) {
+          setStatus(statusElement, failures + ' of ' + batches.length + ' parts failed; click Translate to retry them.', 'error');
+        } else {
+          toolbar.dataset.translateComplete = profile.id;
+          setStatus(statusElement, 'Translation complete (' + profile.label + ').', 'done');
+        }
+      })
+      .finally(function () {
+        setToolbarLoading(toolbar, false);
+      });
+  }
+
+  function runLegacyTranslate(toolbar, entryElement, profile, statusElement) {
+    var resultElement = findResultElement(toolbar, entryElement, 'translate');
+
+    if (resultElement && resultElement.dataset.state === 'done' && resultElement.dataset.profileId === profile.id) {
+      resultElement.hidden = !resultElement.hidden;
+      return;
+    }
+
+    var contentHtml = findEntryContent(entryElement);
     if (!contentHtml) {
       setStatus(statusElement, 'No content available to translate.', 'error');
       return;
@@ -419,26 +553,11 @@
 
     requestAction(getEndpoint(toolbar, 'translate'), contentHtml, csrfToken, profile.id)
       .then(function (data) {
-        var parts = splitTranslations(data.translated_html);
-        clearImmersive(container);
-
-        if (blocks.length > 0 && parts.length === blocks.length) {
-          blocks.forEach(function (block, index) {
-            var target = document.createElement('span');
-            target.className = 'translate-cn-immersive';
-            target.dataset.profileId = profile.id;
-            target.innerHTML = parts[index];
-            block.appendChild(target);
-          });
-        } else {
-          // Paragraph counts diverged (or no blocks were found): show the whole translation in one block.
-          var resultElement = findResultElement(toolbar, entryElement, 'translate');
-          if (resultElement) {
-            resultElement.innerHTML = data.translated_html;
-            resultElement.hidden = false;
-            resultElement.dataset.state = 'done';
-            resultElement.dataset.profileId = profile.id;
-          }
+        if (resultElement) {
+          resultElement.innerHTML = data.translated_html;
+          resultElement.hidden = false;
+          resultElement.dataset.state = 'done';
+          resultElement.dataset.profileId = profile.id;
         }
         setStatus(statusElement, 'Translation complete (' + profile.label + ').', 'done');
       })
