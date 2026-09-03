@@ -1,0 +1,8 @@
+# Local phpstan tooling, not part of the extension
+vendor/
+composer.phar
+installer
+composer.json
+composer.lock
+phpstan.neon
+stubs/
