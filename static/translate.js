@@ -710,8 +710,15 @@
     }
   }
 
+  // main.js and this script are both loaded async, so the extension config (filled in by
+  // main.js from #jsonVars) may not exist yet when the DOM is ready. Building the toolbar
+  // before that would lock in an empty profile list, so wait for freshrss:globalContextLoaded.
+  function configLoaded() {
+    return Array.isArray(getExtensionConfig().profiles);
+  }
+
   function bind() {
-    if (isBound) return;
+    if (isBound || !configLoaded()) return;
     isBound = true;
 
     ensureToolbars(document);
@@ -731,7 +738,6 @@
 
   ready(bind);
   document.addEventListener('freshrss:globalContextLoaded', function () {
-    ensureToolbars(document);
-    bind();
+    ready(bind);
   });
 })();
