@@ -131,11 +131,21 @@
     clone.querySelectorAll('.translate-cn-toolbar, .translate-cn-result, .translate-cn-immersive').forEach(function (element) {
       element.remove();
     });
+    clone.querySelectorAll('.translate-cn-block').forEach(function (element) {
+      element.replaceWith.apply(element, Array.prototype.slice.call(element.childNodes));
+    });
 
     return clone.innerHTML.trim();
   }
 
   var BLOCK_SELECTOR = 'p, h1, h2, h3, h4, h5, h6, li, blockquote';
+  var LOOSE_BLOCK_CLASS = 'translate-cn-block';
+  var OWN_NODES_SELECTOR = '.translate-cn-toolbar, .translate-cn-result, .translate-cn-immersive';
+  var INLINE_TAGS = ['A', 'ABBR', 'B', 'BDI', 'BDO', 'BR', 'CITE', 'CODE', 'DEL', 'EM', 'FONT', 'I',
+    'IMG', 'INS', 'KBD', 'MARK', 'PICTURE', 'Q', 'S', 'SMALL', 'SPAN', 'STRONG', 'SUB', 'SUP',
+    'TIME', 'U', 'VAR', 'WBR'];
+  var UNTRANSLATABLE_TAGS = ['SCRIPT', 'STYLE', 'PRE', 'NOSCRIPT', 'TEMPLATE', 'TEXTAREA', 'SVG', 'IFRAME'];
+  var PARAGRAPH_BREAK = /\n[^\S\n]*\n/;
   var PARAGRAPH_SEPARATOR = '\n\n%%\n\n';
   var MAX_BATCH_BLOCKS = 8;
   var MAX_BATCH_CHARS = 6000;
@@ -148,15 +158,96 @@
     return clone.innerHTML.trim();
   }
 
+  // Many feeds separate paragraphs with blank lines instead of <p>, so a text node can hold
+  // several paragraphs: split it up before grouping, one text node per paragraph.
+  function splitOnParagraphBreaks(textNode) {
+    var parts = [textNode];
+    var current = textNode;
+    var match = PARAGRAPH_BREAK.exec(current.data);
+
+    while (match) {
+      current = current.splitText(match.index + match[0].length);
+      parts.push(current);
+      match = PARAGRAPH_BREAK.exec(current.data);
+    }
+
+    return parts;
+  }
+
+  // Text and inline elements that sit directly in the content need an element of their own
+  // to hang a translation on. Returns null for runs without text (blank space, lone images).
+  function wrapLooseNodes(nodes) {
+    while (nodes.length > 0 && nodes[0].textContent.trim() === '') nodes.shift();
+    while (nodes.length > 0 && nodes[nodes.length - 1].textContent.trim() === '') nodes.pop();
+    if (nodes.length === 0) return null;
+
+    var wrapper = document.createElement('span');
+    wrapper.className = LOOSE_BLOCK_CLASS;
+    nodes[0].parentNode.insertBefore(wrapper, nodes[0]);
+    nodes.forEach(function (node) { wrapper.appendChild(node); });
+
+    return wrapper;
+  }
+
+  function collectFrom(element, blocks) {
+    var run = [];
+
+    function flushRun() {
+      if (run.length === 0) return;
+      var wrapper = wrapLooseNodes(run);
+      run = [];
+      if (wrapper) blocks.push(wrapper);
+    }
+
+    function pushBlock(node) {
+      if (blockSourceHtml(node) !== '') blocks.push(node);
+    }
+
+    Array.prototype.slice.call(element.childNodes).forEach(function (node) {
+      if (node.nodeType === 3) {
+        splitOnParagraphBreaks(node).forEach(function (part, index) {
+          if (index > 0) flushRun();
+          run.push(part);
+        });
+        return;
+      }
+
+      if (node.nodeType !== 1) return;
+
+      if (node.matches(OWN_NODES_SELECTOR)) {
+        flushRun();
+        return;
+      }
+
+      if (node.classList.contains(LOOSE_BLOCK_CLASS)) {
+        flushRun();
+        pushBlock(node);
+        return;
+      }
+
+      if (INLINE_TAGS.indexOf(node.tagName) !== -1) {
+        run.push(node);
+        return;
+      }
+
+      flushRun();
+      if (UNTRANSLATABLE_TAGS.indexOf(node.tagName) !== -1) return;
+
+      // Keep leaf blocks only: a blockquote or li wrapping other blocks is covered by its children.
+      if (node.matches(BLOCK_SELECTOR) && !node.querySelector(BLOCK_SELECTOR)) {
+        pushBlock(node);
+        return;
+      }
+
+      collectFrom(node, blocks);
+    });
+
+    flushRun();
+  }
+
   function collectTranslatableBlocks(container) {
     var blocks = [];
-    container.querySelectorAll(BLOCK_SELECTOR).forEach(function (element) {
-      if (element.closest('.translate-cn-toolbar, .translate-cn-result, .translate-cn-immersive')) return;
-      // Keep leaf blocks only: a blockquote or li wrapping other blocks is covered by its children.
-      if (element.querySelector(BLOCK_SELECTOR)) return;
-      if (blockSourceHtml(element) === '') return;
-      blocks.push(element);
-    });
+    collectFrom(container, blocks);
 
     return blocks;
   }
@@ -475,29 +566,57 @@
         var parts = results[nextToRender];
         var batch = batches[nextToRender];
         if (parts !== null) {
-          if (parts.length === batch.length) {
-            batch.forEach(function (block, index) {
-              injectTranslation(block, parts[index], profile.id);
-            });
-          } else {
-            // The model merged or split paragraphs: keep the content visible on the batch's first block.
-            injectTranslation(batch[0], parts.join('<br>'), profile.id);
-          }
+          batch.forEach(function (block, index) {
+            if (parts[index] !== null) injectTranslation(block, parts[index], profile.id);
+          });
         }
         nextToRender += 1;
       }
+    }
+
+    function translateBlock(block) {
+      return requestAction(getEndpoint(toolbar, 'translate'), blockSourceHtml(block), csrfToken, profile.id)
+        .then(function (data) { return splitTranslations(data.translated_html).join('<br>'); });
+    }
+
+    // Blocks are translated one request each, so no separator can go missing; a failed block stays null.
+    function translateBlocksOneByOne(batch) {
+      var parts = [];
+      return batch.reduce(function (chain, block) {
+        return chain
+          .then(function () { return translateBlock(block); })
+          .catch(function () { return null; })
+          .then(function (part) { parts.push(part); });
+      }, Promise.resolve()).then(function () { return parts; });
+    }
+
+    function translateBatch(batch) {
+      if (batch.length === 1) return translateBlock(batch[0]).then(function (part) { return [part]; });
+
+      var contentHtml = batch.map(blockSourceHtml).join(PARAGRAPH_SEPARATOR);
+      return requestAction(getEndpoint(toolbar, 'translate'), contentHtml, csrfToken, profile.id)
+        .then(function (data) {
+          var parts = splitTranslations(data.translated_html);
+          if (parts.length === batch.length) return parts;
+          // The model merged or split paragraphs: redo this batch block by block so every
+          // translation lands under its own paragraph.
+          return translateBlocksOneByOne(batch);
+        });
     }
 
     function translateNextBatch() {
       var item = queue.shift();
       if (!item) return Promise.resolve();
 
-      var contentHtml = item.batch.map(blockSourceHtml).join(PARAGRAPH_SEPARATOR);
-      return requestAction(getEndpoint(toolbar, 'translate'), contentHtml, csrfToken, profile.id)
-        .then(function (data) {
-          results[item.index] = splitTranslations(data.translated_html);
-          done += 1;
-          setStatus(statusElement, 'Translating (' + profile.label + ')… ' + done + '/' + batches.length, 'loading');
+      return translateBatch(item.batch)
+        .then(function (parts) {
+          results[item.index] = parts;
+          if (parts.indexOf(null) !== -1) {
+            failures += 1;
+          } else {
+            done += 1;
+            setStatus(statusElement, 'Translating (' + profile.label + ')… ' + done + '/' + batches.length, 'loading');
+          }
         })
         .catch(function () {
           results[item.index] = null;
