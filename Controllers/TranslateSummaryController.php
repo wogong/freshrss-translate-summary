@@ -114,6 +114,7 @@ final class FreshExtension_TranslateSummary_Controller extends FreshRSS_ActionCo
             CURLOPT_HTTPHEADER => [
                 'Content-Type: application/json',
                 'Authorization: Bearer ' . $apiKey,
+                'User-Agent: freshrss-translate-summary',
             ],
             CURLOPT_POSTFIELDS => $bodyJson,
             CURLOPT_TIMEOUT => $requestTimeout,
